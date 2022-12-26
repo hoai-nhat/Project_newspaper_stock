@@ -1,1 +1,0 @@
-echo "# Automated-system-to-report-future-stock-prices" 
