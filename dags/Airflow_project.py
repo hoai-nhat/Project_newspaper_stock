@@ -10,6 +10,7 @@ from airflow.providers.postgres.operators.postgres import PostgresOperator
 import pandas as pd
 import psycopg2
 
+
 #tạo list newspaper web 1
 def check_newspaper_web_1():
     list_newspaper_old =[]
@@ -17,7 +18,7 @@ def check_newspaper_web_1():
         with open('/home/airflow/cafef.csv','r',encoding='utf-8') as f:
             reader = csv.reader(f,delimiter=';')
             for row in reader:
-                Title,Link = row
+                Title,Link,author,time,category,web = row
                 list_newspaper_old.append(Title[1:-1])
     except FileNotFoundError :
         list_newspaper_old =[]
@@ -43,18 +44,34 @@ def Craw_data_web_1():
             else:
                 file.write('{'.encode() + title.encode() +'}'.encode()+ ';'.encode())
                 link = e.find('a').attrs['href']
-                L='{'.encode() +link_cafef.encode() + link.encode() +'}'.encode() + '\n'.encode()
-                file.write(L)
+                L=link_cafef.encode() + link.encode()
+                file.write('{'.encode() + L+'}'.encode()+ ';'.encode())
+                res=requests.get(L)
+                sou=BeautifulSoup(res.content,"html.parser")
+                try:
+                    author=sou.find('p',class_='author').text
+                except:
+                    author="không xác định"
+                try:
+                    time=sou.find('span', class_="pdate").text
+                except:
+                    time="không xác định"
+                try:
+                    category=sou.find('a', class_="cat").text
+                except:
+                    category ="chứng khoán"
+                file.write('{'.encode()+' '.encode() + author.encode() +'}'.encode() + ';'.encode())
+                file.write('{'.encode() + time.encode()+'}'.encode() + ';'.encode())
+                file.write('{'.encode() + category.encode() +'}'.encode()+ ';'.encode() +'{'.encode() + 'cafef'.encode() +'}'.encode() +'\n'.encode())
                 i+=1
         file.close
         return i
     except:
         file=open('/home/airflow/cafef.csv','wb')
-        file.write("{Trang web 1 không có báo mới};{website 1 error !}".encode())
+        file.write("{Trang web 1 không có báo mới};{Web 1 does not have a new newspaper  !};{};{};{};{}".encode())
         file.close()
         return 0
-
-# ETL dữ liệu lên database
+#insert data web 2
 def import_data_web_1():
     #connect database
     conn = psycopg2.connect("dbname='postgres' user='airflow' host='host.docker.internal' password='airflow'")
@@ -65,11 +82,12 @@ def import_data_web_1():
 
         # Iterate through the rows of the CSV file
         for row in reader:
+            print(row)
         # Extract the values from the row
-            Title,Link = row
+            Title,Link,author,time,category,web = row
 
             # Construct the INSERT statement
-            sql = f"INSERT INTO List_article (Title,Link) VALUES ('{Title}', '{Link}')"
+            sql = f"INSERT INTO List_article (Title,Link,author,time,category,web) VALUES ('{Title}', '{Link}', '{author}', '{time}', '{category}','{web}')"
 
         # Execute the INSERT statement
             with conn.cursor() as cursor:
@@ -88,7 +106,7 @@ def check_newspaper_web_2():
         with open('/home/airflow/baodautu.csv','r',encoding='utf-8') as f:
             reader = csv.reader(f,delimiter=';')
             for row in reader:
-                Title,Link = row
+                Title,Link,author,time,category,web  = row
                 list_newspaper_old.append(Title[1:-1])
     except FileNotFoundError:
         list_newspaper_old =[]
@@ -108,21 +126,26 @@ def Craw_data_web_2():
             title = title.replace('"','')
             title = title.replace("'","")
             title = title.replace(';','')
-            print(title)
             if title in list_:
-                print("có")
                 continue
             else:
-                print("không có")
                 file.write('{'.encode() + title.encode() +'}'.encode() + ';'.encode())
+                the_loai = e.find('a',class_="cl_green").text
                 link = e.find('a').attrs['href']
-                file.write('{'.encode() + link.encode() +'}'.encode() + '\n'.encode())
+                file.write('{'.encode() + link.encode() +'}'.encode() + ';'.encode())
+                res=requests.get(link)
+                sou = BeautifulSoup(res.content,"html.parser")
+                author=sou.find('a',class_="author cl_green").text
+                file.write('{'.encode()+' '.encode()+author.encode()+'}'.encode()+ ';'.encode())
+                time = sou.find('span',class_="post-time").text
+                file.write('{'.encode()+time[2:].encode()+'}'.encode() + ';'.encode())
+                file.write('{'.encode()+the_loai.encode()+'}'.encode()+ ';'.encode() +'{'.encode() + 'baodautu'.encode() +'}'.encode() + '\n'.encode())
                 i+=1
         file.close
         return i
     except:
         file=open('/home/airflow/baodautu.csv','wb')
-        file.write("{Trang web 2 không có báo mới};{website 2 error !}".encode())
+        file.write("{Trang web 2 không có báo mới};{Web 2 does not have a new newspaper !};{};{};{};{}".encode())
         file.close()
         return 0
 #đưa dữ liệu lên database
@@ -137,10 +160,10 @@ def import_data_web_2():
         # Iterate through the rows of the CSV file
         for row in reader:
         # Extract the values from the row
-            Title,Link = row
+            Title,Link,author,time,category,web = row
 
             # Construct the INSERT statement
-            sql = f"INSERT INTO List_article (Title,Link) VALUES ('{Title}', '{Link}')"
+            sql = f"INSERT INTO List_article (Title,Link,author,time,category,web) VALUES ('{Title}', '{Link}', '{author}', '{time}', '{category}','{web}')"
 
         # Execute the INSERT statement
             with conn.cursor() as cursor:
@@ -159,7 +182,8 @@ def check_newspaper_web_3():
         with open('/home/airflow/kinhtechungkhoan.csv','r',encoding='utf-8') as f:
             reader = csv.reader(f,delimiter=';')
             for row in reader:
-                Title,Link = row
+                print(row)
+                Title,Link,author,time,category,web = row
                 list_newspaper_old.append(Title[1:-1])
     except FileNotFoundError:
         list_newspaper_old =[]
@@ -184,14 +208,23 @@ def Craw_data_web_3():
             else:
                 file.write('{'.encode() + title.encode() +'}'.encode() + ';'.encode())
                 link = Element[e].attrs['href']
-                L='{'.encode() + link.encode() +'}'.encode() + '\n'.encode()
-                file.write(L)
+                file.write('{'.encode() + link.encode() +'}'.encode()+ ';'.encode())
+                res = requests.get(link)
+                sou = BeautifulSoup(res.content, "html.parser")
+                author_ = sou.findAll('strong')
+                author=author_[-1].text
+                file.write('{'.encode()+' '.encode()+author.encode()+'}'.encode()+';'.encode())
+                time_d=sou.find('span',class_='format_date').text
+                time_t=sou.find('span',class_='format_time').text
+                file.write('{'.encode()+time_d.encode()+' '.encode()+time_t.encode()+'}'.encode()+';'.encode())
+                the_loai = sou.find('a', class_="acted").text
+                file.write('{'.encode()+the_loai.encode()+'}'.encode()+ ';'.encode() +'{'.encode() + 'kinhtechungkhoan'.encode() +'}'.encode()+'\n'.encode())
                 i+=1
         file.close
         return i
     except:
         file=open('/home/airflow/kinhtechungkhoan.csv','wb')
-        file.write("{Trang web 3 không có báo mới};{website 3 error !}".encode())
+        file.write("{Trang web 3 không có báo mới};{Web 3 does not have a new newspaper  !};{};{};{};{}".encode())
         file.close()
         return 0
 #đưa dữ liệu lên database
@@ -206,10 +239,10 @@ def import_data_web_3():
         # Iterate through the rows of the CSV file
         for row in reader:
         # Extract the values from the row
-            Title,Link = row
+            Title,Link,author,time,category,web = row
 
             # Construct the INSERT statement
-            sql = f"INSERT INTO List_article (Title,Link) VALUES ('{Title}', '{Link}')"
+            sql = f"INSERT INTO List_article (Title,Link,author,time,category,web) VALUES ('{Title}', '{Link}', '{author}', '{time}', '{category}','{web}')"
 
         # Execute the INSERT statement
             with conn.cursor() as cursor:
@@ -228,7 +261,7 @@ def check_newspaper_web_4():
         with open('/home/airflow/stockbiz.csv','r',encoding='utf-8') as f:
             reader = csv.reader(f,delimiter=';')
             for row in reader:
-                Title,Link = row
+                Title,Link,author,time,category,web = row
                 list_newspaper_old.append(Title[1:-1])
     except FileNotFoundError:
         list_newspaper_old =[]
@@ -253,13 +286,20 @@ def Craw_data_web_4():
             else:
                 file.write('{'.encode() + title.encode() +'}'.encode() + ';'.encode())
                 link = e.find('a').attrs['href']
-                file.write('{'.encode() + link.encode() +'}'.encode() + '\n'.encode())
+                file.write('{'.encode() + link.encode() +'}'.encode() + ';'.encode())
+                res=requests.get(link)
+                sou=BeautifulSoup(res.content,"html.parser")
+                file.write('{'.encode()+' không xác định'.encode()+'}'.encode() + ';'.encode())
+                time=sou.find('span', class_="news_date").text
+                time_=time[10:-8]
+                file.write('{'.encode()+time_.encode()+'}'.encode() + ';'.encode())
+                file.write('{'.encode()+'Chứng khoán'.encode()+'}'.encode()+ ';'.encode() +'{'.encode() + 'stockbiz'.encode() +'}'.encode() + '\n'.encode())
                 i+=1
         file.close
         return i
     except:
         file=open('/home/airflow/stockbiz.csv','wb')
-        file.write("{Trang web 4 không có báo mới};{website 4 error !}".encode())
+        file.write("{Trang web 4 không có báo mới};{Web 2 does not have a new newspaper  !};{};{};{};{}".encode())
         file.close()
         return 0
 #đưa dữ liệu lên database
@@ -274,10 +314,10 @@ def import_data_web_4():
         # Iterate through the rows of the CSV file
         for row in reader:
         # Extract the values from the row
-            Title,Link = row
+            Title,Link,author,time,category,web = row
 
             # Construct the INSERT statement
-            sql = f"INSERT INTO List_article (Title,Link) VALUES ('{Title}', '{Link}')"
+            sql = f"INSERT INTO List_article (Title,Link,author,time,category,web) VALUES ('{Title}', '{Link}', '{author}', '{time}', '{category}','{web}')"
 
         # Execute the INSERT statement
             with conn.cursor() as cursor:
@@ -298,7 +338,7 @@ def check_newspaper_new():
     if number_web1==number_web2==number_web3==number_web4==0:
         return "no_new_newspaper"
     else:
-        return "hot_stock"
+        return "create_table_main"
 #báo cáo nếu không có báo mới  
 def no_new_newspaper_f():
     import smtplib,ssl
@@ -331,8 +371,8 @@ def hot_stock_():
     paths=['/home/airflow/cafef.csv','/home/airflow/baodautu.csv','/home/airflow/kinhtechungkhoan.csv','/home/airflow/stockbiz.csv']
     dfs=[]
     for path in paths:
-        df=pd.read_csv(path,names=['title', 'Link'],sep=";")
-        columns = ['title', 'Link']
+        df=pd.read_csv(path,names=['title', 'Link','author','time','category','web'],sep=";")
+        columns = ['title', 'Link','author','time','category','web']
         for col in columns:
             df[col] = df[col].str[1:-1]
         dfs.append(df)#
@@ -400,19 +440,24 @@ dag = DAG(
     schedule=timedelta(hours=1),
     start_date= datetime.today(),
     tags=['FX16197'])
-
+#tạo bảng lưu trữ
 create_table = PostgresOperator(
     task_id='create_table',
     postgres_conn_id='Postges_conn',
     sql="""
-    CREATE TABLE if not exists List_article (
+    BEGIN;
+    DROP TABLE IF EXISTS list_article;
+    CREATE TABLE if not exists list_article (
         ID SERIAL PRIMARY KEY ,
         Title TEXT,
-        Link TEXT
-    );
-    """,
+        Link TEXT,
+        author TEXT,
+        time TEXT,
+        category TEXT,
+        web TEXT);
+    COMMIT;""",
     dag=dag
-)
+    )
 check1 = PythonOperator(
     task_id = 'check_newspaper_web_1',
     python_callable=check_newspaper_web_1,
@@ -484,6 +529,65 @@ no_new_newspaper=PythonOperator(
     python_callable=no_new_newspaper_f,
     dag=dag
 )
+#tạo bảng chính
+create_table_main = PostgresOperator(
+    task_id='create_table_main',
+    postgres_conn_id='Postges_conn',
+    sql="""
+    CREATE TABLE IF NOT EXISTS author(
+    id SERIAL primary key,
+    author text UNIQUE);
+
+    CREATE TABLE IF NOT EXISTS category(
+    id SERIAL primary key,
+    category text UNIQUE);
+
+    CREATE TABLE IF NOT EXISTS web(
+    id SERIAL primary key,
+    web text UNIQUE);
+
+    CREATE TABLE IF NOT EXISTS fact_paper(
+    ID SERIAL primary key,
+    title text,
+    link text,
+    time text,
+    id_author Integer,
+    id_category integer,
+    id_web integer,
+    FOREIGN KEY (id_author) REFERENCES author(id),
+    FOREIGN KEY (id_category) REFERENCES category(id),
+    FOREIGN KEY (id_web) REFERENCES web(id)
+    )""",
+    dag=dag
+    )
+#etl data
+etl_data = PostgresOperator(
+    task_id='etl_data',
+    postgres_conn_id='Postges_conn',
+    sql="""
+    INSERT INTO category (category)
+    SELECT DISTINCT category
+    FROM list_article
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO author (author)
+    SELECT DISTINCT author
+    FROM list_article
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO web (web)
+    SELECT DISTINCT web
+    FROM list_article
+    ON CONFLICT DO NOTHING;
+
+    INSERT INTO fact_paper (title, link,time,id_author,id_category,id_web)
+    SELECT title,link,time,author.id,category.id,web.id
+    FROM list_article 
+    join author on list_article.author::text = author.author::text
+    join category on list_article.category::text = category.category::text
+    join web on list_article.web::text = web.web::text;""",
+    dag=dag
+    )
 hot_stock =PythonOperator(
     task_id = 'hot_stock',
     python_callable=hot_stock_,
@@ -500,5 +604,5 @@ check1>>craw_web_1>>import_web_1>>check_newspaper_ne
 check2>>craw_web_2>>import_web_2>>check_newspaper_ne
 check3>>craw_web_3>>import_web_3>>check_newspaper_ne
 check4>>craw_web_4>>import_web_4>>check_newspaper_ne
-check_newspaper_ne>>[hot_stock,no_new_newspaper]
-hot_stock>>email_
+check_newspaper_ne>>[create_table_main,no_new_newspaper]
+create_table_main>>etl_data>>hot_stock>>email_
